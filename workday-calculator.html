@@ -472,6 +472,16 @@
             <input type="date" id="firstWorkDate" value="2026-05-17">
           </div>
 
+          <div class="info-group" style="flex-direction: row; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="customSettlement" style="width: 18px; height: 18px;">
+            <label for="customSettlement" style="margin: 0; font-size: 0.85rem;">自定义月结日</label>
+          </div>
+
+          <div class="info-group" id="settlementDayGroup" style="opacity: 0.5; pointer-events: none;">
+            <label>月结日（每月）</label>
+            <input type="number" id="settlementDay" value="1" min="1" max="31">
+          </div>
+
           <div class="info-group">
             <label>月工资 (元)</label>
             <input type="number" id="monthlySalary" value="7500" min="0">
@@ -585,7 +595,9 @@
       monthlySalary: 8000,
       monthlyRest: 4,
       firstWorkDate: null,
-      mode: 'rest' // 'rest' or 'half'
+      mode: 'rest', // 'rest' or 'half'
+      customSettlement: false,
+      settlementDay: 1
     };
 
     const STORAGE_KEY = 'workday_calculator_data';
@@ -597,6 +609,9 @@
     const monthlyRestInput = document.getElementById('monthlyRest');
     const savedNote = document.getElementById('savedNote');
     const modeBtn = document.getElementById('modeBtn');
+    const customSettlementInput = document.getElementById('customSettlement');
+    const settlementDayInput = document.getElementById('settlementDay');
+    const settlementDayGroup = document.getElementById('settlementDayGroup');
 
     const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
@@ -652,23 +667,66 @@
     function calculateCurrentCycle() {
       const today = new Date();
       const firstWork = state.firstWorkDate;
-      const cycleDay = firstWork.getDate();
+      const cycleDay = state.customSettlement ? state.settlementDay : firstWork.getDate();
 
-      let cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
-      let cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+      let cycleStart, cycleEnd;
 
-      if (firstWork < cycleStart) {
-        cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay);
+      if (state.customSettlement) {
+        // Custom settlement day: cycle is from settlementDay of prev month to settlementDay-1 of current month
+        // Current cycle is the one that contains today
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        // Find which month we're in based on settlement day
+        if (today.getDate() >= cycleDay) {
+          // We're after settlement day, so cycle is: settlementDay of this month to settlementDay-1 of next month
+          cycleStart = new Date(currentYear, currentMonth, cycleDay);
+          cycleEnd = new Date(currentYear, currentMonth + 1, cycleDay - 1);
+        } else {
+          // We're before settlement day, so cycle is: settlementDay of prev month to settlementDay-1 of this month
+          cycleStart = new Date(currentYear, currentMonth - 1, cycleDay);
+          cycleEnd = new Date(currentYear, currentMonth, cycleDay - 1);
+        }
+
+        // Adjust for first work date if it hasn't happened yet in current cycle
+        if (firstWork > cycleEnd) {
+          // First work is in the future cycle
+          cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
+          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+          if (firstWork > cycleEnd) {
+            cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+          }
+        }
+
+        // Make sure first work date is in the current cycle
+        if (firstWork >= cycleStart && firstWork <= cycleEnd) {
+          // First work is in current cycle, we're good
+        } else if (firstWork < cycleStart) {
+          // First work is before current cycle, need to go back
+          while (firstWork < cycleStart) {
+            cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
+            cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
+            if (firstWork >= cycleStart && firstWork <= cycleEnd) break;
+          }
+        }
+      } else {
+        // Original logic based on first work date's day
+        cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
         cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
-      }
 
-      while (today > cycleEnd) {
-        cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay);
-        cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
-      }
-      while (today < cycleStart) {
-        cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
-        cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
+        if (firstWork < cycleStart) {
+          cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay);
+          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+        }
+
+        while (today > cycleEnd) {
+          cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay);
+          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+        }
+        while (today < cycleStart) {
+          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
+          cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
+        }
       }
 
       state.periodStart = cycleStart;
@@ -847,7 +905,9 @@
         monthlyRest: state.monthlyRest,
         restDays: [...state.restDays],
         halfDays: [...state.halfDays],
-        fullDays: [...state.fullDays]
+        fullDays: [...state.fullDays],
+        customSettlement: state.customSettlement,
+        settlementDay: state.settlementDay
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       savedNote.textContent = '已保存';
@@ -882,12 +942,18 @@
       if (saved) {
         try {
           const data = JSON.parse(saved);
-          firstWorkDateInput.value = data.firstWorkDate || '2026-04-15';
-          monthlySalaryInput.value = data.monthlySalary || 8000;
+          firstWorkDateInput.value = data.firstWorkDate || '2026-05-17';
+          monthlySalaryInput.value = data.monthlySalary || 7500;
           monthlyRestInput.value = data.monthlyRest || 4;
           state.restDays = new Set(data.restDays || []);
           state.halfDays = new Set(data.halfDays || []);
           state.fullDays = new Set(data.fullDays || []);
+          state.customSettlement = data.customSettlement || false;
+          state.settlementDay = data.settlementDay || 1;
+          customSettlementInput.checked = state.customSettlement;
+          settlementDayInput.value = state.settlementDay;
+          settlementDayGroup.style.opacity = state.customSettlement ? '1' : '0.5';
+          settlementDayGroup.style.pointerEvents = state.customSettlement ? 'auto' : 'none';
           return true;
         } catch (e) {
           return false;
@@ -898,9 +964,15 @@
 
     function init() {
       if (!loadFromStorage()) {
-        firstWorkDateInput.value = '2026-04-15';
-        monthlySalaryInput.value = 8000;
+        firstWorkDateInput.value = '2026-05-17';
+        monthlySalaryInput.value = 7500;
         monthlyRestInput.value = 4;
+        state.customSettlement = false;
+        state.settlementDay = 1;
+        customSettlementInput.checked = false;
+        settlementDayInput.value = 1;
+        settlementDayGroup.style.opacity = '0.5';
+        settlementDayGroup.style.pointerEvents = 'none';
       }
 
       state.firstWorkDate = parseDate(firstWorkDateInput.value);
@@ -964,6 +1036,30 @@
       updateModeButton();
     });
 
+    customSettlementInput.addEventListener('change', (e) => {
+      state.customSettlement = e.target.checked;
+      settlementDayGroup.style.opacity = state.customSettlement ? '1' : '0.5';
+      settlementDayGroup.style.pointerEvents = state.customSettlement ? 'auto' : 'none';
+      state.restDays.clear();
+      state.halfDays.clear();
+      state.fullDays.clear();
+      calculateCurrentCycle();
+      setDefaultRestDays();
+      renderCalendar();
+      updateStats();
+    });
+
+    settlementDayInput.addEventListener('input', (e) => {
+      state.settlementDay = parseInt(e.target.value) || 1;
+      state.restDays.clear();
+      state.halfDays.clear();
+      state.fullDays.clear();
+      calculateCurrentCycle();
+      setDefaultRestDays();
+      renderCalendar();
+      updateStats();
+    });
+
     document.getElementById('clearBtn').addEventListener('click', () => {
       if (confirm('确定要清除所有保存的数据吗？')) {
         localStorage.removeItem(STORAGE_KEY);
@@ -973,6 +1069,12 @@
         firstWorkDateInput.value = '2026-05-17';
         monthlySalaryInput.value = 7500;
         monthlyRestInput.value = 4;
+        customSettlementInput.checked = false;
+        settlementDayInput.value = 1;
+        state.customSettlement = false;
+        state.settlementDay = 1;
+        settlementDayGroup.style.opacity = '0.5';
+        settlementDayGroup.style.pointerEvents = 'none';
         state.firstWorkDate = parseDate(firstWorkDateInput.value);
         state.monthlySalary = 7500;
         state.monthlyRest = 4;
