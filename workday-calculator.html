@@ -774,86 +774,19 @@
 
         cell.dataset.date = dateStr;
 
-        const handleClick = (e) => {
+        cell.addEventListener('click', (e) => {
           if (!isInPeriod(date)) return;
           e.preventDefault();
+          e.stopPropagation();
 
           const current = getDayStatus(dateStr);
           if (current !== 'full') {
-            // If rest or half, clicking removes it (sets to full)
             setDayStatus(dateStr, 'full');
           } else {
-            // If full, clicking sets to current mode
             setDayStatus(dateStr, state.mode);
           }
           renderCalendar();
           updateStats();
-        };
-
-        const handleLongPress = (e) => {
-          if (!isInPeriod(date)) return;
-          e.preventDefault();
-
-          const current = getDayStatus(dateStr);
-          // Long press toggles half/full
-          setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
-          renderCalendar();
-          updateStats();
-        };
-
-        let pressTimer;
-        let isPressed = false;
-
-        // Mouse events
-        cell.addEventListener('mousedown', (e) => {
-          if (!isInPeriod(date)) return;
-          isPressed = true;
-          clearTimeout(pressTimer);
-          pressTimer = setTimeout(() => {
-            isPressed = false;
-            handleLongPress(e);
-          }, 500);
-        });
-
-        cell.addEventListener('mouseup', (e) => {
-          if (!isInPeriod(date)) return;
-          clearTimeout(pressTimer);
-          if (isPressed) {
-            isPressed = false;
-            handleClick(e);
-          }
-        });
-
-        cell.addEventListener('mouseleave', () => {
-          clearTimeout(pressTimer);
-          isPressed = false;
-        });
-
-        // Touch events for mobile
-        cell.addEventListener('touchstart', (e) => {
-          if (!isInPeriod(date)) return;
-          e.preventDefault();
-          isPressed = true;
-          clearTimeout(pressTimer);
-          pressTimer = setTimeout(() => {
-            isPressed = false;
-            handleLongPress(e);
-          }, 500);
-        }, { passive: false });
-
-        cell.addEventListener('touchend', (e) => {
-          if (!isInPeriod(date)) return;
-          e.preventDefault();
-          clearTimeout(pressTimer);
-          if (isPressed) {
-            isPressed = false;
-            handleClick(e);
-          }
-        });
-
-        cell.addEventListener('touchmove', () => {
-          clearTimeout(pressTimer);
-          isPressed = false;
         });
 
         daysGrid.appendChild(cell);
