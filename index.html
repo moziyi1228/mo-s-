@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>莫家工具列表</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: #F5F0E8;
+      min-height: 100vh;
+      padding: 2rem;
+      color: #1a1a1a;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #2D5A27;
+    }
+
+    .tool-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .tool-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+
+    .tool-link {
+      display: block;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .tool-link h2 {
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: #2D5A27;
+      margin-bottom: 0.5rem;
+    }
+
+    .tool-link p {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .arrow {
+      float: right;
+      color: #2D5A27;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>莫家工具列表</h1>
+    </header>
+
+    <div class="tool-list">
+      <div class="tool-card">
+        <a href="workday-calculator.html" class="tool-link">
+          <h2>家里佣人工资计算工具 <span class="arrow">→</span></h2>
+          <p>通过日历选择休假日，计算月工资</p>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
