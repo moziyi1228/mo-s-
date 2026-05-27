@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上班天数计算器</title>
+  <title>家里佣人工资计算工具</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
 
@@ -18,6 +18,7 @@
       --primary-light: #3d7a35;
       --bg: #F5F0E8;
       --accent: #E85D04;
+      --half: #8B7355;
       --text: #1a1a1a;
       --text-light: #666;
       --white: #fff;
@@ -165,6 +166,23 @@
       background: #d14d00;
     }
 
+    .day-cell.half {
+      background: var(--half);
+      position: relative;
+    }
+
+    .day-cell.half:hover {
+      background: #7a6548;
+    }
+
+    .day-cell.half::after {
+      content: '½';
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 0.6rem;
+    }
+
     .info-panel {
       display: flex;
       flex-direction: column;
@@ -272,6 +290,7 @@
 
     .legend-dot.workday { background: var(--primary); }
     .legend-dot.rest { background: var(--accent); }
+    .legend-dot.half { background: var(--half); }
 
     .instructions {
       font-size: 0.8rem;
@@ -378,7 +397,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>上班天数计算器</h1>
+      <h1>家里佣人工资计算工具</h1>
       <div class="period-badge" id="periodDisplay">2026-05-15 ~ 2026-06-14</div>
     </header>
 
@@ -413,17 +432,22 @@
         <div class="legend" style="margin-top: 1rem;">
           <div class="legend-item">
             <div class="legend-dot workday"></div>
-            <span>上班日</span>
+            <span>全天上班</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot half"></div>
+            <span>半天上班</span>
           </div>
           <div class="legend-item">
             <div class="legend-dot rest"></div>
-            <span>休假日</span>
+            <span>休息日</span>
           </div>
         </div>
 
         <div class="instructions" style="margin-top: 1rem;">
           <strong>操作说明:</strong><br>
-          按住并拖动选择休假日（橙色），再次拖动可取消
+          点击：全天上班 ↔ 休息日<br>
+          Shift+点击：半天上班
         </div>
       </div>
 
@@ -454,12 +478,20 @@
             <span class="stat-value" id="totalDays">31</span>
           </div>
           <div class="stat-row">
-            <span>上班天数</span>
-            <span class="stat-value" id="workDays">31</span>
+            <span>全天上班</span>
+            <span class="stat-value" id="fullWorkDays">27</span>
           </div>
           <div class="stat-row">
-            <span>休假日数</span>
-            <span class="stat-value" id="restDays">0</span>
+            <span>半天上班</span>
+            <span class="stat-value" id="halfDays">0</span>
+          </div>
+          <div class="stat-row">
+            <span>休息日</span>
+            <span class="stat-value" id="restDays">4</span>
+          </div>
+          <div class="stat-row">
+            <span>实际天数</span>
+            <span class="stat-value" id="actualDays">27.0</span>
           </div>
           <div class="stat-row">
             <span>日工资</span>
@@ -467,7 +499,7 @@
           </div>
           <div class="stat-row total">
             <span>结算工资</span>
-            <span class="stat-value" id="totalSalary">9538.46</span>
+            <span class="stat-value" id="totalSalary">8307.69</span>
           </div>
         </div>
 
@@ -488,12 +520,20 @@
         <span class="slip-value" id="slipTotalDays">-</span>
       </div>
       <div class="slip-row">
-        <span class="slip-label">上班天数</span>
-        <span class="slip-value" id="slipWorkDays">-</span>
+        <span class="slip-label">全天上班</span>
+        <span class="slip-value" id="slipFullDays">-</span>
       </div>
       <div class="slip-row">
-        <span class="slip-label">休假日数</span>
+        <span class="slip-label">半天上班</span>
+        <span class="slip-value" id="slipHalfDays">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">休息日</span>
         <span class="slip-value" id="slipRestDays">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">实际天数</span>
+        <span class="slip-value" id="slipActualDays">-</span>
       </div>
       <div class="slip-row">
         <span class="slip-label">月工资</span>
@@ -522,6 +562,8 @@
       periodStart: null,
       periodEnd: null,
       restDays: new Set(),
+      halfDays: new Set(),
+      fullDays: new Set(),
       monthlySalary: 8000,
       monthlyRest: 4,
       firstWorkDate: null
@@ -560,6 +602,22 @@
       return d >= state.periodStart && d <= state.periodEnd;
     }
 
+    function getDayStatus(dateStr) {
+      if (state.restDays.has(dateStr)) return 'rest';
+      if (state.halfDays.has(dateStr)) return 'half';
+      if (state.fullDays.has(dateStr)) return 'full';
+      return 'full';
+    }
+
+    function setDayStatus(dateStr, status) {
+      state.restDays.delete(dateStr);
+      state.halfDays.delete(dateStr);
+      state.fullDays.delete(dateStr);
+      if (status === 'rest') state.restDays.add(dateStr);
+      else if (status === 'half') state.halfDays.add(dateStr);
+      else if (status === 'full') state.fullDays.add(dateStr);
+    }
+
     function getPeriodDays() {
       if (!state.periodStart || !state.periodEnd) return [];
       const days = [];
@@ -574,28 +632,21 @@
     function calculateCurrentCycle() {
       const today = new Date();
       const firstWork = state.firstWorkDate;
-
-      // Cycle day of month (e.g., 15th)
       const cycleDay = firstWork.getDate();
 
-      // Find initial cycle that contains first work date
       let cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
       let cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
 
-      // If first work was before the cycle day, it belongs to previous cycle
       if (firstWork < cycleStart) {
         cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay);
         cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
       }
 
-      // Find the cycle that contains today
       while (today > cycleEnd) {
-        // Advance to next cycle
         cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay);
         cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
       }
       while (today < cycleStart) {
-        // Go back to previous cycle
         cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
         cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
       }
@@ -608,6 +659,14 @@
 
       state.currentYear = state.periodStart.getFullYear();
       state.currentMonth = state.periodStart.getMonth();
+    }
+
+    function setDefaultRestDays() {
+      const periodDays = getPeriodDays();
+      const last4Days = periodDays.slice(-4);
+      for (const d of last4Days) {
+        state.restDays.add(formatDate(d));
+      }
     }
 
     function renderCalendar() {
@@ -638,8 +697,10 @@
 
         if (!isInPeriod(date)) {
           cell.classList.add('outside');
-        } else if (state.restDays.has(dateStr)) {
-          cell.classList.add('rest');
+        } else {
+          const status = getDayStatus(dateStr);
+          if (status === 'rest') cell.classList.add('rest');
+          else if (status === 'half') cell.classList.add('half');
         }
 
         cell.dataset.date = dateStr;
@@ -647,12 +708,34 @@
         cell.addEventListener('mousedown', (e) => {
           if (!isInPeriod(date)) return;
           e.preventDefault();
-          toggleRest(dateStr);
+          if (e.shiftKey) {
+            const current = getDayStatus(dateStr);
+            if (current === 'half') {
+              setDayStatus(dateStr, 'full');
+            } else {
+              setDayStatus(dateStr, 'half');
+            }
+          } else {
+            const current = getDayStatus(dateStr);
+            if (current === 'rest') {
+              setDayStatus(dateStr, 'full');
+            } else {
+              setDayStatus(dateStr, 'rest');
+            }
+          }
+          renderCalendar();
+          updateStats();
         });
 
         cell.addEventListener('mouseenter', () => {
           if (e.buttons === 1 && isInPeriod(date)) {
-            toggleRest(dateStr);
+            if (e.shiftKey) {
+              setDayStatus(dateStr, 'half');
+            } else {
+              setDayStatus(dateStr, 'rest');
+            }
+            renderCalendar();
+            updateStats();
           }
         });
 
@@ -660,35 +743,34 @@
       }
     }
 
-    function toggleRest(dateStr) {
-      if (state.restDays.has(dateStr)) {
-        state.restDays.delete(dateStr);
-      } else {
-        state.restDays.add(dateStr);
-      }
-      renderCalendar();
-      updateStats();
-    }
-
     function updateStats() {
       const periodDays = getPeriodDays();
       const totalDays = periodDays.length;
 
-      const periodRestDays = [...state.restDays].filter(d => isInPeriod(parseDate(d)));
-      const restDaysCount = periodRestDays.length;
-      const workDaysCount = totalDays - restDaysCount;
+      let fullCount = 0, halfCount = 0, restCount = 0;
 
+      for (const d of periodDays) {
+        const dateStr = formatDate(d);
+        const status = getDayStatus(dateStr);
+        if (status === 'rest') restCount++;
+        else if (status === 'half') halfCount++;
+        else fullCount++;
+      }
+
+      const actualDays = fullCount + halfCount * 0.5;
       const workingDays = 30 - state.monthlyRest;
       const dailyRate = workingDays > 0 ? state.monthlySalary / workingDays : 0;
-      const totalSalary = dailyRate * workDaysCount;
+      const totalSalary = dailyRate * actualDays;
 
       document.getElementById('totalDays').textContent = totalDays;
-      document.getElementById('workDays').textContent = workDaysCount;
-      document.getElementById('restDays').textContent = restDaysCount;
+      document.getElementById('fullWorkDays').textContent = fullCount;
+      document.getElementById('halfDays').textContent = halfCount;
+      document.getElementById('restDays').textContent = restCount;
+      document.getElementById('actualDays').textContent = actualDays.toFixed(1);
       document.getElementById('dailyRate').textContent = dailyRate.toFixed(2);
       document.getElementById('totalSalary').textContent = totalSalary.toFixed(2);
 
-      return { totalDays, workDaysCount, restDaysCount, dailyRate, totalSalary };
+      return { totalDays, fullCount, halfCount, restCount, actualDays, dailyRate, totalSalary };
     }
 
     function saveToStorage() {
@@ -696,7 +778,9 @@
         firstWorkDate: formatDate(state.firstWorkDate),
         monthlySalary: state.monthlySalary,
         monthlyRest: state.monthlyRest,
-        restDays: [...state.restDays]
+        restDays: [...state.restDays],
+        halfDays: [...state.halfDays],
+        fullDays: [...state.fullDays]
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       savedNote.textContent = '已保存';
@@ -705,15 +789,15 @@
 
     function showSalarySlip() {
       const stats = updateStats();
-
-      // Save before showing slip
       saveToStorage();
 
       document.getElementById('slipPeriod').textContent =
         `${formatDate(state.periodStart)} ~ ${formatDate(state.periodEnd)}`;
       document.getElementById('slipTotalDays').textContent = stats.totalDays + '天';
-      document.getElementById('slipWorkDays').textContent = stats.workDaysCount + '天';
-      document.getElementById('slipRestDays').textContent = stats.restDaysCount + '天';
+      document.getElementById('slipFullDays').textContent = stats.fullCount + '天';
+      document.getElementById('slipHalfDays').textContent = stats.halfCount + '天';
+      document.getElementById('slipRestDays').textContent = stats.restCount + '天';
+      document.getElementById('slipActualDays').textContent = stats.actualDays.toFixed(1) + '天';
       document.getElementById('slipMonthlySalary').textContent = state.monthlySalary + '元';
       document.getElementById('slipMonthlyRest').textContent = state.monthlyRest + '天';
       document.getElementById('slipDailyRate').textContent = stats.dailyRate.toFixed(2) + '元';
@@ -735,6 +819,8 @@
           monthlySalaryInput.value = data.monthlySalary || 8000;
           monthlyRestInput.value = data.monthlyRest || 4;
           state.restDays = new Set(data.restDays || []);
+          state.halfDays = new Set(data.halfDays || []);
+          state.fullDays = new Set(data.fullDays || []);
           return true;
         } catch (e) {
           return false;
@@ -745,7 +831,6 @@
 
     function init() {
       if (!loadFromStorage()) {
-        // Use default values
         firstWorkDateInput.value = '2026-04-15';
         monthlySalaryInput.value = 8000;
         monthlyRestInput.value = 4;
@@ -757,10 +842,20 @@
 
       calculateCurrentCycle();
 
-      // Clear rest days outside current period
       const validDates = new Set(getPeriodDays().map(d => formatDate(d)));
       for (const dateStr of state.restDays) {
         if (!validDates.has(dateStr)) state.restDays.delete(dateStr);
+      }
+      for (const dateStr of state.halfDays) {
+        if (!validDates.has(dateStr)) state.halfDays.delete(dateStr);
+      }
+      for (const dateStr of state.fullDays) {
+        if (!validDates.has(dateStr)) state.fullDays.delete(dateStr);
+      }
+
+      // Set default last 4 days as rest if no data loaded
+      if (state.restDays.size === 0 && state.halfDays.size === 0 && state.fullDays.size === 0) {
+        setDefaultRestDays();
       }
 
       renderCalendar();
@@ -788,7 +883,10 @@
     firstWorkDateInput.addEventListener('change', () => {
       state.firstWorkDate = parseDate(firstWorkDateInput.value);
       state.restDays.clear();
+      state.halfDays.clear();
+      state.fullDays.clear();
       calculateCurrentCycle();
+      setDefaultRestDays();
       renderCalendar();
       updateStats();
     });
