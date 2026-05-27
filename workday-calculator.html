@@ -147,8 +147,12 @@
       -webkit-touch-callout: none;
     }
 
-    .day-cell:hover:not(.empty):not(.outside) {
+    .day-cell:hover:not(.empty):not(.outside):not(:active) {
       background: var(--primary-light);
+    }
+
+    .day-cell:active:not(.empty):not(.outside) {
+      opacity: 0.8;
     }
 
     .day-cell.empty, .day-cell.outside {
@@ -727,73 +731,80 @@
 
         cell.dataset.date = dateStr;
 
-        let touchStarted = false;
-        let touchTimer;
-        let touched = false;
-
-        const handleDayStatus = () => {
+        const handleClick = (e) => {
           if (!isInPeriod(date)) return;
-          if (touched) {
-            touched = false;
-            return;
-          }
-          // Toggle based on mode
+          e.preventDefault();
+          e.stopPropagation();
+
+          const current = getDayStatus(dateStr);
           if (state.mode === 'half') {
-            const current = getDayStatus(dateStr);
+            // Toggle between half and full
             setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
           } else {
-            const current = getDayStatus(dateStr);
+            // Toggle between rest and full
             setDayStatus(dateStr, current === 'rest' ? 'full' : 'rest');
           }
           renderCalendar();
           updateStats();
         };
 
-        const handleHalfDay = () => {
-          touched = false;
+        const handleLongPress = () => {
           if (!isInPeriod(date)) return;
           const current = getDayStatus(dateStr);
+          // Long press always sets to half
           setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
           renderCalendar();
           updateStats();
         };
 
-        // Touch events
+        let pressTimer;
+        let didLongPress = false;
+
+        cell.addEventListener('mousedown', (e) => {
+          if (!isInPeriod(date)) return;
+          didLongPress = false;
+          clearTimeout(pressTimer);
+          pressTimer = setTimeout(() => {
+            didLongPress = true;
+            handleLongPress();
+          }, 500);
+        });
+
+        cell.addEventListener('mouseup', (e) => {
+          if (!isInPeriod(date)) return;
+          clearTimeout(pressTimer);
+          if (!didLongPress) {
+            handleClick(e);
+          }
+        });
+
+        cell.addEventListener('mouseleave', () => {
+          clearTimeout(pressTimer);
+        });
+
+        // Touch events for mobile
         cell.addEventListener('touchstart', (e) => {
           if (!isInPeriod(date)) return;
           e.preventDefault();
-          touchStarted = true;
-          touched = true;
-          clearTimeout(touchTimer);
-          touchTimer = setTimeout(() => {
-            touched = false;
-            handleHalfDay();
-            touchStarted = false;
+          didLongPress = false;
+          clearTimeout(pressTimer);
+          pressTimer = setTimeout(() => {
+            didLongPress = true;
+            handleLongPress();
           }, 500);
         }, { passive: false });
 
         cell.addEventListener('touchend', (e) => {
           if (!isInPeriod(date)) return;
           e.preventDefault();
-          clearTimeout(touchTimer);
-          if (touchStarted && touched) {
-            handleDayStatus();
+          clearTimeout(pressTimer);
+          if (!didLongPress) {
+            handleClick(e);
           }
-          touchStarted = false;
-          touched = false;
         });
 
-        cell.addEventListener('touchmove', (e) => {
-          clearTimeout(touchTimer);
-          touchStarted = false;
-          touched = false;
-        });
-
-        // Mouse click for PC
-        cell.addEventListener('click', (e) => {
-          if (!isInPeriod(date)) return;
-          e.preventDefault();
-          handleDayStatus();
+        cell.addEventListener('touchmove', () => {
+          clearTimeout(pressTimer);
         });
 
         daysGrid.appendChild(cell);
