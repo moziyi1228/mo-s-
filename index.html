@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>上班天数计算器</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #2D5A27;
+      --primary-light: #3d7a35;
+      --bg: #F5F0E8;
+      --accent: #E85D04;
+      --text: #1a1a1a;
+      --text-light: #666;
+      --white: #fff;
+      --border: #ddd;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 2rem;
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .period-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: var(--white);
+      padding: 0.4rem 1.2rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 750px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .calendar-header h2 {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: var(--primary);
+      color: var(--white);
+      border-color: var(--primary);
+    }
+
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 0.5rem;
+    }
+
+    .weekday {
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-light);
+      padding: 0.5rem 0;
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .day-cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      background: var(--primary);
+      color: var(--white);
+    }
+
+    .day-cell:hover:not(.empty):not(.outside) {
+      background: var(--primary-light);
+    }
+
+    .day-cell.empty, .day-cell.outside {
+      background: transparent;
+      cursor: default;
+      color: #ccc;
+    }
+
+    .day-cell.outside:hover {
+      background: transparent;
+    }
+
+    .day-cell.rest {
+      background: var(--accent);
+    }
+
+    .day-cell.rest:hover {
+      background: #d14d00;
+    }
+
+    .info-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .info-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .info-group label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-light);
+    }
+
+    .info-group input {
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .info-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .stats {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: var(--white);
+      border-radius: 12px;
+      padding: 1.2rem;
+    }
+
+    .stats h3 {
+      font-size: 0.85rem;
+      opacity: 0.85;
+      margin-bottom: 0.8rem;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .stat-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stat-row.total {
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      padding-top: 0.8rem;
+      margin-top: 0.8rem;
+    }
+
+    .stat-value {
+      font-weight: 500;
+    }
+
+    .confirm-btn {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--accent);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .confirm-btn:hover {
+      background: #d14d00;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-light);
+    }
+
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+    }
+
+    .legend-dot.workday { background: var(--primary); }
+    .legend-dot.rest { background: var(--accent); }
+
+    .instructions {
+      font-size: 0.8rem;
+      color: var(--text-light);
+      line-height: 1.5;
+      padding: 0.8rem;
+      background: #f8f6f3;
+      border-radius: 8px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .salary-slip {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 360px;
+      max-width: 90vw;
+    }
+
+    .salary-slip h2 {
+      text-align: center;
+      font-size: 1.3rem;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px dashed var(--border);
+    }
+
+    .slip-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.95rem;
+    }
+
+    .slip-row:last-child {
+      border-bottom: none;
+    }
+
+    .slip-row.total {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--primary);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .slip-label {
+      color: var(--text-light);
+    }
+
+    .slip-value {
+      font-weight: 500;
+    }
+
+    .close-btn {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.8rem;
+      background: var(--primary);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .close-btn:hover {
+      background: var(--primary-light);
+    }
+
+    .saved-note {
+      font-size: 0.8rem;
+      color: var(--primary);
+      margin-top: 0.3rem;
+      height: 1.2rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>上班天数计算器</h1>
+      <div class="period-badge" id="periodDisplay">2026-05-15 ~ 2026-06-14</div>
+    </header>
+
+    <div class="main-layout">
+      <div class="card">
+        <div class="calendar-header">
+          <button class="nav-btn" id="prevMonth">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <h2 id="monthYear">2026年5月</h2>
+          <button class="nav-btn" id="nextMonth">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="weekdays">
+          <div class="weekday">日</div>
+          <div class="weekday">一</div>
+          <div class="weekday">二</div>
+          <div class="weekday">三</div>
+          <div class="weekday">四</div>
+          <div class="weekday">五</div>
+          <div class="weekday">六</div>
+        </div>
+
+        <div class="days-grid" id="daysGrid"></div>
+
+        <div class="legend" style="margin-top: 1rem;">
+          <div class="legend-item">
+            <div class="legend-dot workday"></div>
+            <span>上班日</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot rest"></div>
+            <span>休假日</span>
+          </div>
+        </div>
+
+        <div class="instructions" style="margin-top: 1rem;">
+          <strong>操作说明:</strong><br>
+          按住并拖动选择休假日（橙色），再次拖动可取消
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <div class="card">
+          <div class="info-group">
+            <label>首次上班日期</label>
+            <input type="date" id="firstWorkDate" value="2026-04-15">
+          </div>
+
+          <div class="info-group">
+            <label>月工资 (元)</label>
+            <input type="number" id="monthlySalary" value="8000" min="0">
+          </div>
+
+          <div class="info-group">
+            <label>月休天数</label>
+            <input type="number" id="monthlyRest" value="4" min="0" max="30">
+          </div>
+
+          <div class="saved-note" id="savedNote"></div>
+        </div>
+
+        <div class="card stats">
+          <h3>当前周期结算</h3>
+          <div class="stat-row">
+            <span>周期天数</span>
+            <span class="stat-value" id="totalDays">31</span>
+          </div>
+          <div class="stat-row">
+            <span>上班天数</span>
+            <span class="stat-value" id="workDays">31</span>
+          </div>
+          <div class="stat-row">
+            <span>休假日数</span>
+            <span class="stat-value" id="restDays">0</span>
+          </div>
+          <div class="stat-row">
+            <span>日工资</span>
+            <span class="stat-value" id="dailyRate">307.69</span>
+          </div>
+          <div class="stat-row total">
+            <span>结算工资</span>
+            <span class="stat-value" id="totalSalary">9538.46</span>
+          </div>
+        </div>
+
+        <button class="confirm-btn" id="confirmBtn">确认结算</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="salary-slip" id="salarySlip">
+      <h2>工资单</h2>
+      <div class="slip-row">
+        <span class="slip-label">周期</span>
+        <span class="slip-value" id="slipPeriod">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">周期天数</span>
+        <span class="slip-value" id="slipTotalDays">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">上班天数</span>
+        <span class="slip-value" id="slipWorkDays">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">休假日数</span>
+        <span class="slip-value" id="slipRestDays">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">月工资</span>
+        <span class="slip-value" id="slipMonthlySalary">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">月休天数</span>
+        <span class="slip-value" id="slipMonthlyRest">-</span>
+      </div>
+      <div class="slip-row">
+        <span class="slip-label">日工资</span>
+        <span class="slip-value" id="slipDailyRate">-</span>
+      </div>
+      <div class="slip-row total">
+        <span class="slip-label">结算工资</span>
+        <span class="slip-value" id="slipTotalSalary">-</span>
+      </div>
+      <button class="close-btn" id="closeBtn">关闭</button>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      currentYear: 2026,
+      currentMonth: 4,
+      periodStart: null,
+      periodEnd: null,
+      restDays: new Set(),
+      monthlySalary: 8000,
+      monthlyRest: 4,
+      firstWorkDate: null
+    };
+
+    const STORAGE_KEY = 'workday_calculator_data';
+
+    const daysGrid = document.getElementById('daysGrid');
+    const monthYearEl = document.getElementById('monthYear');
+    const firstWorkDateInput = document.getElementById('firstWorkDate');
+    const monthlySalaryInput = document.getElementById('monthlySalary');
+    const monthlyRestInput = document.getElementById('monthlyRest');
+    const savedNote = document.getElementById('savedNote');
+
+    const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+    function formatDate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseDate(str) {
+      const [y, m, d] = str.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function getDaysInMonth(year, month) {
+      return new Date(year, month + 1, 0).getDate();
+    }
+
+    function isInPeriod(date) {
+      if (!state.periodStart || !state.periodEnd) return false;
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      return d >= state.periodStart && d <= state.periodEnd;
+    }
+
+    function getPeriodDays() {
+      if (!state.periodStart || !state.periodEnd) return [];
+      const days = [];
+      const current = new Date(state.periodStart);
+      while (current <= state.periodEnd) {
+        days.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+      return days;
+    }
+
+    function calculateCurrentCycle() {
+      const today = new Date();
+      const firstWork = state.firstWorkDate;
+
+      // Cycle day of month (e.g., 15th)
+      const cycleDay = firstWork.getDate();
+
+      // Find initial cycle that contains first work date
+      let cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
+      let cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+
+      // If first work was before the cycle day, it belongs to previous cycle
+      if (firstWork < cycleStart) {
+        cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay);
+        cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+      }
+
+      // Find the cycle that contains today
+      while (today > cycleEnd) {
+        // Advance to next cycle
+        cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay);
+        cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+      }
+      while (today < cycleStart) {
+        // Go back to previous cycle
+        cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
+        cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
+      }
+
+      state.periodStart = cycleStart;
+      state.periodEnd = cycleEnd;
+
+      document.getElementById('periodDisplay').textContent =
+        `${formatDate(state.periodStart)} ~ ${formatDate(state.periodEnd)}`;
+
+      state.currentYear = state.periodStart.getFullYear();
+      state.currentMonth = state.periodStart.getMonth();
+    }
+
+    function renderCalendar() {
+      const year = state.currentYear;
+      const month = state.currentMonth;
+
+      monthYearEl.textContent = `${year}年${MONTHS[month]}`;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = getDaysInMonth(year, month);
+      const startWeekday = firstDay.getDay();
+
+      daysGrid.innerHTML = '';
+
+      for (let i = 0; i < startWeekday; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'day-cell empty';
+        daysGrid.appendChild(emptyCell);
+      }
+
+      for (let day = 1; day <= lastDay; day++) {
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        cell.textContent = day;
+
+        const date = new Date(year, month, day);
+        const dateStr = formatDate(date);
+
+        if (!isInPeriod(date)) {
+          cell.classList.add('outside');
+        } else if (state.restDays.has(dateStr)) {
+          cell.classList.add('rest');
+        }
+
+        cell.dataset.date = dateStr;
+
+        cell.addEventListener('mousedown', (e) => {
+          if (!isInPeriod(date)) return;
+          e.preventDefault();
+          toggleRest(dateStr);
+        });
+
+        cell.addEventListener('mouseenter', () => {
+          if (e.buttons === 1 && isInPeriod(date)) {
+            toggleRest(dateStr);
+          }
+        });
+
+        daysGrid.appendChild(cell);
+      }
+    }
+
+    function toggleRest(dateStr) {
+      if (state.restDays.has(dateStr)) {
+        state.restDays.delete(dateStr);
+      } else {
+        state.restDays.add(dateStr);
+      }
+      renderCalendar();
+      updateStats();
+    }
+
+    function updateStats() {
+      const periodDays = getPeriodDays();
+      const totalDays = periodDays.length;
+
+      const periodRestDays = [...state.restDays].filter(d => isInPeriod(parseDate(d)));
+      const restDaysCount = periodRestDays.length;
+      const workDaysCount = totalDays - restDaysCount;
+
+      const workingDays = 30 - state.monthlyRest;
+      const dailyRate = workingDays > 0 ? state.monthlySalary / workingDays : 0;
+      const totalSalary = dailyRate * workDaysCount;
+
+      document.getElementById('totalDays').textContent = totalDays;
+      document.getElementById('workDays').textContent = workDaysCount;
+      document.getElementById('restDays').textContent = restDaysCount;
+      document.getElementById('dailyRate').textContent = dailyRate.toFixed(2);
+      document.getElementById('totalSalary').textContent = totalSalary.toFixed(2);
+
+      return { totalDays, workDaysCount, restDaysCount, dailyRate, totalSalary };
+    }
+
+    function saveToStorage() {
+      const data = {
+        firstWorkDate: formatDate(state.firstWorkDate),
+        monthlySalary: state.monthlySalary,
+        monthlyRest: state.monthlyRest,
+        restDays: [...state.restDays]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      savedNote.textContent = '已保存';
+      setTimeout(() => { savedNote.textContent = ''; }, 2000);
+    }
+
+    function showSalarySlip() {
+      const stats = updateStats();
+
+      // Save before showing slip
+      saveToStorage();
+
+      document.getElementById('slipPeriod').textContent =
+        `${formatDate(state.periodStart)} ~ ${formatDate(state.periodEnd)}`;
+      document.getElementById('slipTotalDays').textContent = stats.totalDays + '天';
+      document.getElementById('slipWorkDays').textContent = stats.workDaysCount + '天';
+      document.getElementById('slipRestDays').textContent = stats.restDaysCount + '天';
+      document.getElementById('slipMonthlySalary').textContent = state.monthlySalary + '元';
+      document.getElementById('slipMonthlyRest').textContent = state.monthlyRest + '天';
+      document.getElementById('slipDailyRate').textContent = stats.dailyRate.toFixed(2) + '元';
+      document.getElementById('slipTotalSalary').textContent = stats.totalSalary.toFixed(2) + '元';
+
+      document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    function hideSalarySlip() {
+      document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    function loadFromStorage() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          firstWorkDateInput.value = data.firstWorkDate || '2026-04-15';
+          monthlySalaryInput.value = data.monthlySalary || 8000;
+          monthlyRestInput.value = data.monthlyRest || 4;
+          state.restDays = new Set(data.restDays || []);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      return false;
+    }
+
+    function init() {
+      if (!loadFromStorage()) {
+        // Use default values
+        firstWorkDateInput.value = '2026-04-15';
+        monthlySalaryInput.value = 8000;
+        monthlyRestInput.value = 4;
+      }
+
+      state.firstWorkDate = parseDate(firstWorkDateInput.value);
+      state.monthlySalary = parseFloat(monthlySalaryInput.value) || 0;
+      state.monthlyRest = parseInt(monthlyRestInput.value) || 0;
+
+      calculateCurrentCycle();
+
+      // Clear rest days outside current period
+      const validDates = new Set(getPeriodDays().map(d => formatDate(d)));
+      for (const dateStr of state.restDays) {
+        if (!validDates.has(dateStr)) state.restDays.delete(dateStr);
+      }
+
+      renderCalendar();
+      updateStats();
+    }
+
+    document.getElementById('prevMonth').addEventListener('click', () => {
+      state.currentMonth--;
+      if (state.currentMonth < 0) {
+        state.currentMonth = 11;
+        state.currentYear--;
+      }
+      renderCalendar();
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+      state.currentMonth++;
+      if (state.currentMonth > 11) {
+        state.currentMonth = 0;
+        state.currentYear++;
+      }
+      renderCalendar();
+    });
+
+    firstWorkDateInput.addEventListener('change', () => {
+      state.firstWorkDate = parseDate(firstWorkDateInput.value);
+      state.restDays.clear();
+      calculateCurrentCycle();
+      renderCalendar();
+      updateStats();
+    });
+
+    monthlySalaryInput.addEventListener('input', (e) => {
+      state.monthlySalary = parseFloat(e.target.value) || 0;
+      updateStats();
+    });
+
+    monthlyRestInput.addEventListener('input', (e) => {
+      state.monthlyRest = parseInt(e.target.value) || 0;
+      updateStats();
+    });
+
+    document.getElementById('confirmBtn').addEventListener('click', showSalarySlip);
+    document.getElementById('closeBtn').addEventListener('click', hideSalarySlip);
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('modalOverlay')) {
+        hideSalarySlip();
+      }
+    });
+
+    daysGrid.addEventListener('selectstart', (e) => e.preventDefault());
+
+    init();
+  </script>
+</body>
+</html>
