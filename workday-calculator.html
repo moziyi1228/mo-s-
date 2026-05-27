@@ -452,11 +452,10 @@
 
         <div class="instructions" style="margin-top: 0.5rem;">
           <strong>操作说明:</strong><br>
-          点击日期切换状态<br>
-          切换模式后点击日期：<br>
-          · 休息日模式：标记休息<br>
-          · 半天模式：标记半天上班<br>
-          长按任意日期也可直接标记半天
+          点击"模式"按钮切换模式<br>
+          · 休息日模式：点击标记/取消休息<br>
+          · 半天模式：点击标记/取消半天<br>
+          PC端：Shift+点击直接标记半天
         </div>
       </div>
 
@@ -464,12 +463,12 @@
         <div class="card">
           <div class="info-group">
             <label>首次上班日期</label>
-            <input type="date" id="firstWorkDate" value="2026-04-15">
+            <input type="date" id="firstWorkDate" value="2026-05-17">
           </div>
 
           <div class="info-group">
             <label>月工资 (元)</label>
-            <input type="number" id="monthlySalary" value="8000" min="0">
+            <input type="number" id="monthlySalary" value="7500" min="0">
           </div>
 
           <div class="info-group">
@@ -722,86 +721,33 @@
 
         cell.dataset.date = dateStr;
 
-        let pressTimer;
-        let isLongPress = false;
-
-        const handleDayClick = () => {
+        const handleDayClick = (e) => {
           if (!isInPeriod(date)) return;
-          if (isLongPress) {
-            isLongPress = false;
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Shift+click for half on PC
+          if (e.shiftKey) {
+            const current = getDayStatus(dateStr);
+            setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
+            renderCalendar();
+            updateStats();
             return;
           }
-          // Toggle based on mode
+
+          // Normal click - toggle based on mode
           if (state.mode === 'half') {
             const current = getDayStatus(dateStr);
-            if (current === 'half') {
-              setDayStatus(dateStr, 'full');
-            } else {
-              setDayStatus(dateStr, 'half');
-            }
+            setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
           } else {
             const current = getDayStatus(dateStr);
-            if (current === 'rest') {
-              setDayStatus(dateStr, 'full');
-            } else {
-              setDayStatus(dateStr, 'rest');
-            }
+            setDayStatus(dateStr, current === 'rest' ? 'full' : 'rest');
           }
           renderCalendar();
           updateStats();
         };
 
-        cell.addEventListener('mousedown', (e) => {
-          if (!isInPeriod(date)) return;
-          e.preventDefault();
-          // Shift+click for half on PC
-          if (e.shiftKey) {
-            const current = getDayStatus(dateStr);
-            if (current === 'half') {
-              setDayStatus(dateStr, 'full');
-            } else {
-              setDayStatus(dateStr, 'half');
-            }
-            renderCalendar();
-            updateStats();
-          }
-        });
-
-        cell.addEventListener('mouseup', handleDayClick);
-
-        cell.addEventListener('mouseleave', () => {
-          clearTimeout(pressTimer);
-        });
-
-        // Long press for mobile - mark as half day
-        cell.addEventListener('touchstart', (e) => {
-          if (!isInPeriod(date)) return;
-          e.preventDefault();
-          isLongPress = false;
-          pressTimer = setTimeout(() => {
-            isLongPress = true;
-            // Long press: set as half day
-            const current = getDayStatus(dateStr);
-            if (current === 'half') {
-              setDayStatus(dateStr, 'full');
-            } else {
-              setDayStatus(dateStr, 'half');
-            }
-            renderCalendar();
-            updateStats();
-          }, 500);
-        }, { passive: false });
-
-        cell.addEventListener('touchend', (e) => {
-          clearTimeout(pressTimer);
-          if (isLongPress) {
-            e.preventDefault();
-          }
-        });
-
-        cell.addEventListener('touchmove', () => {
-          clearTimeout(pressTimer);
-        }, { passive: true });
+        cell.addEventListener('click', handleDayClick);
 
         daysGrid.appendChild(cell);
       }
