@@ -723,13 +723,12 @@
     function setDefaultRestDays() {
       // Only set default rest days if cycle is complete (full month)
       const periodDays = getPeriodDays();
-      const expectedDays = 30; // A complete cycle should be around 30 days
-      if (periodDays.length >= expectedDays - 2) { // Allow some tolerance
+      const expectedDays = 30;
+      if (periodDays.length >= expectedDays - 2) {
         const last4Days = periodDays.slice(-4);
         for (const d of last4Days) {
           state.restDays.add(formatDate(d));
         }
-      }
       }
     }
 
