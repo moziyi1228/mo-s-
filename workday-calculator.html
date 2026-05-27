@@ -774,22 +774,28 @@
 
         cell.dataset.date = dateStr;
 
-        const handleClick = () => {
+        const handleClick = (e) => {
           if (!isInPeriod(date)) return;
+          e.preventDefault();
 
           const current = getDayStatus(dateStr);
-          if (state.mode === 'half') {
-            setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
+          if (current !== 'full') {
+            // If rest or half, clicking removes it (sets to full)
+            setDayStatus(dateStr, 'full');
           } else {
-            setDayStatus(dateStr, current === 'rest' ? 'full' : 'rest');
+            // If full, clicking sets to current mode
+            setDayStatus(dateStr, state.mode);
           }
           renderCalendar();
           updateStats();
         };
 
-        const handleLongPress = () => {
+        const handleLongPress = (e) => {
           if (!isInPeriod(date)) return;
+          e.preventDefault();
+
           const current = getDayStatus(dateStr);
+          // Long press toggles half/full
           setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
           renderCalendar();
           updateStats();
@@ -801,11 +807,11 @@
         // Mouse events
         cell.addEventListener('mousedown', (e) => {
           if (!isInPeriod(date)) return;
-          e.preventDefault();
           isPressed = true;
+          clearTimeout(pressTimer);
           pressTimer = setTimeout(() => {
             isPressed = false;
-            handleLongPress();
+            handleLongPress(e);
           }, 500);
         });
 
@@ -814,7 +820,7 @@
           clearTimeout(pressTimer);
           if (isPressed) {
             isPressed = false;
-            handleClick();
+            handleClick(e);
           }
         });
 
@@ -828,9 +834,10 @@
           if (!isInPeriod(date)) return;
           e.preventDefault();
           isPressed = true;
+          clearTimeout(pressTimer);
           pressTimer = setTimeout(() => {
             isPressed = false;
-            handleLongPress();
+            handleLongPress(e);
           }, 500);
         }, { passive: false });
 
@@ -840,7 +847,7 @@
           clearTimeout(pressTimer);
           if (isPressed) {
             isPressed = false;
-            handleClick();
+            handleClick(e);
           }
         });
 
