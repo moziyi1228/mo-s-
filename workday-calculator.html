@@ -476,6 +476,10 @@
           </div>
 
           <div class="saved-note" id="savedNote"></div>
+
+          <button id="clearBtn" style="margin-top: 0.5rem; width: 100%; padding: 0.5rem; border: 1px solid var(--border); background: var(--white); border-radius: 8px; cursor: pointer; font-size: 0.8rem; color: var(--text-light);">
+            清除缓存
+          </button>
         </div>
 
         <div class="card stats">
@@ -934,6 +938,27 @@
     modeBtn.addEventListener('click', () => {
       state.mode = state.mode === 'rest' ? 'half' : 'rest';
       updateModeButton();
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (confirm('确定要清除所有保存的数据吗？')) {
+        localStorage.removeItem(STORAGE_KEY);
+        state.restDays.clear();
+        state.halfDays.clear();
+        state.fullDays.clear();
+        firstWorkDateInput.value = '2026-05-17';
+        monthlySalaryInput.value = 7500;
+        monthlyRestInput.value = 4;
+        state.firstWorkDate = parseDate(firstWorkDateInput.value);
+        state.monthlySalary = 7500;
+        state.monthlyRest = 4;
+        calculateCurrentCycle();
+        setDefaultRestDays();
+        renderCalendar();
+        updateStats();
+        savedNote.textContent = '已清除';
+        setTimeout(() => { savedNote.textContent = ''; }, 2000);
+      }
     });
 
     monthlySalaryInput.addEventListener('input', (e) => {
