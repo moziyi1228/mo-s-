@@ -142,6 +142,9 @@
       user-select: none;
       background: var(--primary);
       color: var(--white);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
 
     .day-cell:hover:not(.empty):not(.outside) {
@@ -724,13 +727,14 @@
 
         cell.dataset.date = dateStr;
 
-        let isLongPress = false;
-        let pressTimer;
+        let touchStarted = false;
+        let touchTimer;
+        let touched = false;
 
         const handleDayStatus = () => {
           if (!isInPeriod(date)) return;
-          if (isLongPress) {
-            isLongPress = false;
+          if (touched) {
+            touched = false;
             return;
           }
           // Toggle based on mode
@@ -746,6 +750,7 @@
         };
 
         const handleHalfDay = () => {
+          touched = false;
           if (!isInPeriod(date)) return;
           const current = getDayStatus(dateStr);
           setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
@@ -753,33 +758,42 @@
           updateStats();
         };
 
-        // Unified pointer events for both touch and mouse
-        cell.addEventListener('pointerdown', (e) => {
+        // Touch events
+        cell.addEventListener('touchstart', (e) => {
           if (!isInPeriod(date)) return;
           e.preventDefault();
-          isLongPress = false;
-          pressTimer = setTimeout(() => {
-            isLongPress = true;
+          touchStarted = true;
+          touched = true;
+          clearTimeout(touchTimer);
+          touchTimer = setTimeout(() => {
+            touched = false;
             handleHalfDay();
+            touchStarted = false;
           }, 500);
-        });
+        }, { passive: false });
 
-        cell.addEventListener('pointerup', (e) => {
+        cell.addEventListener('touchend', (e) => {
           if (!isInPeriod(date)) return;
-          clearTimeout(pressTimer);
-          if (!isLongPress) {
+          e.preventDefault();
+          clearTimeout(touchTimer);
+          if (touchStarted && touched) {
             handleDayStatus();
           }
-          isLongPress = false;
+          touchStarted = false;
+          touched = false;
         });
 
-        cell.addEventListener('pointerleave', () => {
-          clearTimeout(pressTimer);
+        cell.addEventListener('touchmove', (e) => {
+          clearTimeout(touchTimer);
+          touchStarted = false;
+          touched = false;
         });
 
-        cell.addEventListener('pointercancel', () => {
-          clearTimeout(pressTimer);
-          isLongPress = false;
+        // Mouse click for PC
+        cell.addEventListener('click', (e) => {
+          if (!isInPeriod(date)) return;
+          e.preventDefault();
+          handleDayStatus();
         });
 
         daysGrid.appendChild(cell);
