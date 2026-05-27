@@ -477,7 +477,7 @@
             <label for="customSettlement" style="margin: 0; font-size: 0.85rem;">自定义月结日</label>
           </div>
 
-          <div class="info-group" id="settlementDayGroup" style="opacity: 0.5; pointer-events: none;">
+          <div class="info-group" id="settlementDayGroup" style="display: none;">
             <label>月结日（每月）</label>
             <input type="number" id="settlementDay" value="1" min="1" max="31">
           </div>
@@ -673,60 +673,41 @@
 
       if (state.customSettlement) {
         // Custom settlement day: cycle is from settlementDay of prev month to settlementDay-1 of current month
-        // Current cycle is the one that contains today
         const currentMonth = today.getMonth();
         const currentYear = today.getFullYear();
 
-        // Find which month we're in based on settlement day
         if (today.getDate() >= cycleDay) {
-          // We're after settlement day, so cycle is: settlementDay of this month to settlementDay-1 of next month
           cycleStart = new Date(currentYear, currentMonth, cycleDay);
           cycleEnd = new Date(currentYear, currentMonth + 1, cycleDay - 1);
         } else {
-          // We're before settlement day, so cycle is: settlementDay of prev month to settlementDay-1 of this month
           cycleStart = new Date(currentYear, currentMonth - 1, cycleDay);
           cycleEnd = new Date(currentYear, currentMonth, cycleDay - 1);
         }
 
-        // Adjust for first work date if it hasn't happened yet in current cycle
-        if (firstWork > cycleEnd) {
-          // First work is in the future cycle
-          cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
-          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
-          if (firstWork > cycleEnd) {
-            cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
-          }
-        }
-
-        // Make sure first work date is in the current cycle
-        if (firstWork >= cycleStart && firstWork <= cycleEnd) {
-          // First work is in current cycle, we're good
-        } else if (firstWork < cycleStart) {
-          // First work is before current cycle, need to go back
-          while (firstWork < cycleStart) {
-            cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
-            cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
-            if (firstWork >= cycleStart && firstWork <= cycleEnd) break;
-          }
+        // If first work is after cycle start, adjust cycle start
+        if (firstWork > cycleStart) {
+          cycleStart = firstWork;
         }
       } else {
-        // Original logic based on first work date's day
-        cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), cycleDay);
-        cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+        // Default: cycle is from first work date to same day next month - 1
+        // e.g., 17th to 16th next month
+        cycleStart = new Date(firstWork.getFullYear(), firstWork.getMonth(), firstWork.getDate());
+        cycleEnd = new Date(firstWork.getFullYear(), firstWork.getMonth() + 1, firstWork.getDate() - 1);
 
-        if (firstWork < cycleStart) {
-          cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay);
-          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
-        }
-
+        // Find the cycle that contains today
         while (today > cycleEnd) {
-          cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay);
-          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, cycleDay - 1);
+          cycleStart = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, firstWork.getDate());
+          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, firstWork.getDate() - 1);
         }
         while (today < cycleStart) {
-          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, cycleDay - 1);
-          cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, cycleDay);
+          cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() - 1, firstWork.getDate() - 1);
+          cycleStart = new Date(cycleEnd.getFullYear(), cycleEnd.getMonth() - 1, firstWork.getDate());
         }
+      }
+
+      // Ensure first work date is always within or at the start of cycle
+      if (firstWork > cycleStart) {
+        cycleStart = firstWork;
       }
 
       state.periodStart = cycleStart;
@@ -740,10 +721,15 @@
     }
 
     function setDefaultRestDays() {
+      // Only set default rest days if cycle is complete (full month)
       const periodDays = getPeriodDays();
-      const last4Days = periodDays.slice(-4);
-      for (const d of last4Days) {
-        state.restDays.add(formatDate(d));
+      const expectedDays = 30; // A complete cycle should be around 30 days
+      if (periodDays.length >= expectedDays - 2) { // Allow some tolerance
+        const last4Days = periodDays.slice(-4);
+        for (const d of last4Days) {
+          state.restDays.add(formatDate(d));
+        }
+      }
       }
     }
 
@@ -952,8 +938,7 @@
           state.settlementDay = data.settlementDay || 1;
           customSettlementInput.checked = state.customSettlement;
           settlementDayInput.value = state.settlementDay;
-          settlementDayGroup.style.opacity = state.customSettlement ? '1' : '0.5';
-          settlementDayGroup.style.pointerEvents = state.customSettlement ? 'auto' : 'none';
+          settlementDayGroup.style.display = state.customSettlement ? 'block' : 'none';
           return true;
         } catch (e) {
           return false;
@@ -971,8 +956,7 @@
         state.settlementDay = 1;
         customSettlementInput.checked = false;
         settlementDayInput.value = 1;
-        settlementDayGroup.style.opacity = '0.5';
-        settlementDayGroup.style.pointerEvents = 'none';
+        settlementDayGroup.style.display = 'none';
       }
 
       state.firstWorkDate = parseDate(firstWorkDateInput.value);
@@ -1038,8 +1022,7 @@
 
     customSettlementInput.addEventListener('change', (e) => {
       state.customSettlement = e.target.checked;
-      settlementDayGroup.style.opacity = state.customSettlement ? '1' : '0.5';
-      settlementDayGroup.style.pointerEvents = state.customSettlement ? 'auto' : 'none';
+      settlementDayGroup.style.display = state.customSettlement ? 'block' : 'none';
       state.restDays.clear();
       state.halfDays.clear();
       state.fullDays.clear();
@@ -1073,8 +1056,7 @@
         settlementDayInput.value = 1;
         state.customSettlement = false;
         state.settlementDay = 1;
-        settlementDayGroup.style.opacity = '0.5';
-        settlementDayGroup.style.pointerEvents = 'none';
+        settlementDayGroup.style.display = 'none';
         state.firstWorkDate = parseDate(firstWorkDateInput.value);
         state.monthlySalary = 7500;
         state.monthlyRest = 4;
