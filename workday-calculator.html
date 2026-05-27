@@ -444,10 +444,19 @@
           </div>
         </div>
 
-        <div class="instructions" style="margin-top: 1rem;">
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+          <button id="modeBtn" style="flex:1; padding: 0.6rem; border: 1px solid var(--border); background: var(--white); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">
+            模式：休息日
+          </button>
+        </div>
+
+        <div class="instructions" style="margin-top: 0.5rem;">
           <strong>操作说明:</strong><br>
-          点击：全天上班 ↔ 休息日<br>
-          Shift+点击：半天上班
+          点击日期切换状态<br>
+          切换模式后点击日期：<br>
+          · 休息日模式：标记休息<br>
+          · 半天模式：标记半天上班<br>
+          长按任意日期也可直接标记半天
         </div>
       </div>
 
@@ -566,7 +575,8 @@
       fullDays: new Set(),
       monthlySalary: 8000,
       monthlyRest: 4,
-      firstWorkDate: null
+      firstWorkDate: null,
+      mode: 'rest' // 'rest' or 'half'
     };
 
     const STORAGE_KEY = 'workday_calculator_data';
@@ -577,6 +587,7 @@
     const monthlySalaryInput = document.getElementById('monthlySalary');
     const monthlyRestInput = document.getElementById('monthlyRest');
     const savedNote = document.getElementById('savedNote');
+    const modeBtn = document.getElementById('modeBtn');
 
     const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
@@ -669,6 +680,12 @@
       }
     }
 
+    function updateModeButton() {
+      modeBtn.textContent = state.mode === 'rest' ? '模式：休息日' : '模式：半天上班';
+      modeBtn.style.background = state.mode === 'rest' ? 'var(--accent)' : 'var(--half)';
+      modeBtn.style.color = 'var(--white)';
+    }
+
     function renderCalendar() {
       const year = state.currentYear;
       const month = state.currentMonth;
@@ -705,10 +722,17 @@
 
         cell.dataset.date = dateStr;
 
-        cell.addEventListener('mousedown', (e) => {
+        let pressTimer;
+        let isLongPress = false;
+
+        const handleDayClick = () => {
           if (!isInPeriod(date)) return;
-          e.preventDefault();
-          if (e.shiftKey) {
+          if (isLongPress) {
+            isLongPress = false;
+            return;
+          }
+          // Toggle based on mode
+          if (state.mode === 'half') {
             const current = getDayStatus(dateStr);
             if (current === 'half') {
               setDayStatus(dateStr, 'full');
@@ -725,19 +749,59 @@
           }
           renderCalendar();
           updateStats();
-        });
+        };
 
-        cell.addEventListener('mouseenter', () => {
-          if (e.buttons === 1 && isInPeriod(date)) {
-            if (e.shiftKey) {
-              setDayStatus(dateStr, 'half');
+        cell.addEventListener('mousedown', (e) => {
+          if (!isInPeriod(date)) return;
+          e.preventDefault();
+          // Shift+click for half on PC
+          if (e.shiftKey) {
+            const current = getDayStatus(dateStr);
+            if (current === 'half') {
+              setDayStatus(dateStr, 'full');
             } else {
-              setDayStatus(dateStr, 'rest');
+              setDayStatus(dateStr, 'half');
             }
             renderCalendar();
             updateStats();
           }
         });
+
+        cell.addEventListener('mouseup', handleDayClick);
+
+        cell.addEventListener('mouseleave', () => {
+          clearTimeout(pressTimer);
+        });
+
+        // Long press for mobile - mark as half day
+        cell.addEventListener('touchstart', (e) => {
+          if (!isInPeriod(date)) return;
+          e.preventDefault();
+          isLongPress = false;
+          pressTimer = setTimeout(() => {
+            isLongPress = true;
+            // Long press: set as half day
+            const current = getDayStatus(dateStr);
+            if (current === 'half') {
+              setDayStatus(dateStr, 'full');
+            } else {
+              setDayStatus(dateStr, 'half');
+            }
+            renderCalendar();
+            updateStats();
+          }, 500);
+        }, { passive: false });
+
+        cell.addEventListener('touchend', (e) => {
+          clearTimeout(pressTimer);
+          if (isLongPress) {
+            e.preventDefault();
+          }
+        });
+
+        cell.addEventListener('touchmove', () => {
+          clearTimeout(pressTimer);
+        }, { passive: true });
 
         daysGrid.appendChild(cell);
       }
@@ -860,6 +924,7 @@
 
       renderCalendar();
       updateStats();
+      updateModeButton();
     }
 
     document.getElementById('prevMonth').addEventListener('click', () => {
@@ -889,6 +954,11 @@
       setDefaultRestDays();
       renderCalendar();
       updateStats();
+    });
+
+    modeBtn.addEventListener('click', () => {
+      state.mode = state.mode === 'rest' ? 'half' : 'rest';
+      updateModeButton();
     });
 
     monthlySalaryInput.addEventListener('input', (e) => {
