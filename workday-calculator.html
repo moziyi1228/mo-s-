@@ -452,10 +452,10 @@
 
         <div class="instructions" style="margin-top: 0.5rem;">
           <strong>操作说明:</strong><br>
-          点击"模式"按钮切换模式<br>
-          · 休息日模式：点击标记/取消休息<br>
-          · 半天模式：点击标记/取消半天<br>
-          PC端：Shift+点击直接标记半天
+          · 点击"模式"按钮切换模式<br>
+          · 点击日期标记/取消（根据当前模式）<br>
+          · 长按日期直接标记半天<br>
+          · PC端：Shift+点击标记半天
         </div>
       </div>
 
@@ -721,21 +721,12 @@
 
         cell.dataset.date = dateStr;
 
-        const handleDayClick = (e) => {
+        let touchTimer;
+        let touched = false;
+
+        const handleDayStatus = () => {
           if (!isInPeriod(date)) return;
-          e.preventDefault();
-          e.stopPropagation();
-
-          // Shift+click for half on PC
-          if (e.shiftKey) {
-            const current = getDayStatus(dateStr);
-            setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
-            renderCalendar();
-            updateStats();
-            return;
-          }
-
-          // Normal click - toggle based on mode
+          // Toggle based on mode
           if (state.mode === 'half') {
             const current = getDayStatus(dateStr);
             setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
@@ -747,7 +738,49 @@
           updateStats();
         };
 
-        cell.addEventListener('click', handleDayClick);
+        const handleHalfDay = () => {
+          if (!isInPeriod(date)) return;
+          const current = getDayStatus(dateStr);
+          setDayStatus(dateStr, current === 'half' ? 'full' : 'half');
+          renderCalendar();
+          updateStats();
+        };
+
+        // Touch events for mobile
+        cell.addEventListener('touchstart', (e) => {
+          if (!isInPeriod(date)) return;
+          e.preventDefault();
+          touched = true;
+          touchTimer = setTimeout(() => {
+            touched = false;
+            handleHalfDay();
+          }, 500);
+        }, { passive: false });
+
+        cell.addEventListener('touchend', (e) => {
+          if (!isInPeriod(date)) return;
+          clearTimeout(touchTimer);
+          if (touched) {
+            touched = false;
+            handleDayStatus();
+          }
+        });
+
+        cell.addEventListener('touchmove', () => {
+          clearTimeout(touchTimer);
+          touched = false;
+        }, { passive: true });
+
+        // Click event for PC
+        cell.addEventListener('click', (e) => {
+          if (!isInPeriod(date)) return;
+          e.preventDefault();
+          if (e.shiftKey) {
+            handleHalfDay();
+          } else {
+            handleDayStatus();
+          }
+        });
 
         daysGrid.appendChild(cell);
       }
