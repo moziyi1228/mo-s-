@@ -445,7 +445,7 @@
         </div>
 
         <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-          <button id="modeBtn" style="flex:1; padding: 0.6rem; border: 1px solid var(--border); background: var(--white); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">
+          <button id="modeBtn" style="flex:1; padding: 1rem; border: 2px solid var(--accent); background: var(--accent); color: var(--white); border-radius: 12px; cursor: pointer; font-size: 1rem; font-weight: 500; touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
             模式：休息日
           </button>
         </div>
@@ -454,8 +454,7 @@
           <strong>操作说明:</strong><br>
           · 点击"模式"按钮切换模式<br>
           · 点击日期标记/取消（根据当前模式）<br>
-          · 长按日期直接标记半天<br>
-          · PC端：Shift+点击标记半天
+          · 长按日期直接标记半天
         </div>
       </div>
 
@@ -721,11 +720,15 @@
 
         cell.dataset.date = dateStr;
 
-        let touchTimer;
-        let touched = false;
+        let isLongPress = false;
+        let pressTimer;
 
         const handleDayStatus = () => {
           if (!isInPeriod(date)) return;
+          if (isLongPress) {
+            isLongPress = false;
+            return;
+          }
           // Toggle based on mode
           if (state.mode === 'half') {
             const current = getDayStatus(dateStr);
@@ -746,40 +749,33 @@
           updateStats();
         };
 
-        // Touch events for mobile
-        cell.addEventListener('touchstart', (e) => {
+        // Unified pointer events for both touch and mouse
+        cell.addEventListener('pointerdown', (e) => {
           if (!isInPeriod(date)) return;
           e.preventDefault();
-          touched = true;
-          touchTimer = setTimeout(() => {
-            touched = false;
+          isLongPress = false;
+          pressTimer = setTimeout(() => {
+            isLongPress = true;
             handleHalfDay();
           }, 500);
-        }, { passive: false });
-
-        cell.addEventListener('touchend', (e) => {
-          if (!isInPeriod(date)) return;
-          clearTimeout(touchTimer);
-          if (touched) {
-            touched = false;
-            handleDayStatus();
-          }
         });
 
-        cell.addEventListener('touchmove', () => {
-          clearTimeout(touchTimer);
-          touched = false;
-        }, { passive: true });
-
-        // Click event for PC
-        cell.addEventListener('click', (e) => {
+        cell.addEventListener('pointerup', (e) => {
           if (!isInPeriod(date)) return;
-          e.preventDefault();
-          if (e.shiftKey) {
-            handleHalfDay();
-          } else {
+          clearTimeout(pressTimer);
+          if (!isLongPress) {
             handleDayStatus();
           }
+          isLongPress = false;
+        });
+
+        cell.addEventListener('pointerleave', () => {
+          clearTimeout(pressTimer);
+        });
+
+        cell.addEventListener('pointercancel', () => {
+          clearTimeout(pressTimer);
+          isLongPress = false;
         });
 
         daysGrid.appendChild(cell);
